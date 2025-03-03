@@ -19,7 +19,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Soft shadows
 container.appendChild( renderer.domElement );
 
 // Create a plane to receive shadows
-const floor_geometry = new THREE.PlaneGeometry(100, 100);
+const floor_geometry = new THREE.PlaneGeometry(1000, 1000);
 const floor_material = new THREE.MeshStandardMaterial({
   color: 'rgb(255, 255, 255)', // Gray color
   roughness: 1,    // Matte surface
@@ -29,16 +29,9 @@ floor.rotation.x = -Math.PI / 2; // Rotate to be horizontal
 floor.receiveShadow = true; // Allow shadows on it
 scene.add(floor);
 
-// add a grid 
-const viz_grid = new THREE.GridHelper(100, 100, 'rgb(245, 3, 3)', 'rgb(0, 0, 0)');
-viz_grid.position.y = 0.1; // Lift it slightly to prevent Z-fighting
-scene.add(viz_grid);
-
 // Add lighting
-const sky_light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.5);
+const sky_light = new THREE.HemisphereLight(0xffffff, 0x444444, 2.0);
 scene.add(sky_light);
-
-
 
 // Create sphere
 const sphere_geometry = new THREE.SphereGeometry(1, 32, 32);
@@ -61,7 +54,7 @@ cone.rotation.x = Math.PI; // Rotate 180° to point downward
 sphere.add(cone);
 
 // Directional Light (Casts Shadows)
-const spot_light = new THREE.SpotLight(0xffffff, 200);
+const spot_light = new THREE.SpotLight('rgb(255, 255, 255)', 400);
 spot_light.position.set(0, 15, 0);
 spot_light.castShadow = true;
 spot_light.shadow.mapSize.width = 1024;
@@ -73,11 +66,20 @@ sphere.add(spot_light);
 
 scene.add(sphere);
 
+// Line trail setup
+const trail_size = 100; // Number of points in the trail
+const trail_points = new Float32Array(trail_size * 3); // 3 values per point (x, y, z)
+const trail_geometry = new THREE.BufferGeometry();
+trail_geometry.setAttribute("position", new THREE.BufferAttribute(trail_points, 3));
+
+const trail_material = new THREE.LineBasicMaterial({ color: 'rgb(255, 102, 0)' });
+const trail = new THREE.Line(trail_geometry, trail_material);
+scene.add(trail);
+
 // Update the third-person camera position
 function updateCameraPosition() {
   camera.position.copy(camera_sphere.getWorldPosition(new THREE.Vector3()));
   camera.lookAt(sphere.position);
-
 }
 
 function updateAgentPosition() {
@@ -86,7 +88,28 @@ function updateAgentPosition() {
   sphere.position.z += Math.cos(t) * motion_speed;
 }
 
-const motion_speed = 0.2;
+function updateTrail() {
+  // Update trail positions
+  for (let i = trail_size - 1; i > 0; i--) {
+    trail_points[i * 3] = trail_points[(i - 1) * 3];     // x
+    trail_points[i * 3 + 1] = trail_points[(i - 1) * 3 + 1]; // y
+    trail_points[i * 3 + 2] = trail_points[(i - 1) * 3 + 2]; // z
+  }
+
+  // Set new trail position at index 0
+  trail_points[0] = sphere.position.x;
+  trail_points[1] = sphere.position.y;
+  trail_points[2] = sphere.position.z;
+
+  trail_geometry.attributes.position.needsUpdate = true;
+}
+// Function to keep the grid centered on the sphere
+function updateFloorPosition(interpolation_factor: number) {
+  floor.position.x += (sphere.position.x - floor.position.x) * interpolation_factor;
+  floor.position.z += (sphere.position.z - floor.position.z) * interpolation_factor;
+}
+
+const motion_speed = 0.5;
 let t = 0;
 // Animation loop
 function animate() {
@@ -94,6 +117,8 @@ function animate() {
   requestAnimationFrame(animate);
 
   updateAgentPosition();
+  updateTrail();
+  updateFloorPosition(0.01);
   updateCameraPosition();
   renderer.render(scene, camera);
 }
