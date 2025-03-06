@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import axios from 'axios';
 
 // init basis for the scene
 const container = document.getElementById( 'container' );
@@ -37,11 +38,11 @@ scene.add(sky_light);
 const sphere_geometry = new THREE.SphereGeometry(1, 32, 32);
 const sphere_material = new THREE.MeshStandardMaterial({ color: 'rgb(88, 130, 208)' });
 const sphere = new THREE.Mesh(sphere_geometry, sphere_material);
-sphere.position.set(0, 4, 0); // Offset the camera behind the sphere
+sphere.position.set(0, 4, 0);
 sphere.castShadow = true;
 
 const camera_sphere = new THREE.Object3D();
-camera_sphere.position.set(0, 9, 20); // Offset the camera behind the sphere
+camera_sphere.position.set(0, 9, 20);
 sphere.add(camera_sphere);
 
 // Create cone (pointing downward)
@@ -109,7 +110,10 @@ function updateFloorPosition(interpolation_factor: number) {
   floor.position.z += (sphere.position.z - floor.position.z) * interpolation_factor;
 }
 
-const motion_speed = 0.5;
+axios.get('http://127.0.0.1:5000/app/data')
+  .then((response: { data: any; }) => console.log(response.data))
+  .catch((error: any) => console.error('Error:', error));
+const motion_speed = 0.2;
 let t = 0;
 // Animation loop
 function animate() {
