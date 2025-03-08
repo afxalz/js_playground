@@ -10,12 +10,15 @@ t = 0.0
 @app.route('/app/data', methods=['GET'])
 def get_data():
     global t
-    response_data = {
+    positions = []
+    for i in range(100):
+        positions.append({
         # "message": "Hello, this is a JSON response!",
         # "status": "success",
         "x": 2 * math.sin(t) - 2,
-        "y": 10,
+        "y": 10 + i / 2,
         "z": 2 * math.cos(t) + 0
-    }
+        })
+        
     t += 0.01
-    return jsonify(response_data), 200  # Sending HTTP status 200 (OK)
+    return jsonify(positions), 200  # Sending HTTP status 200 (OK)

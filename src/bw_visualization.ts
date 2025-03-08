@@ -3,7 +3,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import axios from 'axios';
 
-const container = document.getElementById( 'container' );
+
+interface Vector3 {
+  x: number;
+  y: number;
+  z: number;
+}
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color( 0xf0f0f0 );
@@ -45,6 +50,8 @@ const renderer = new THREE.WebGLRenderer( { antialias: true } );
 renderer.setPixelRatio( window.devicePixelRatio );
 renderer.setSize( window.innerWidth, window.innerHeight );
 renderer.shadowMap.enabled = true;
+
+const container = document.getElementById( 'container' );
 container.appendChild( renderer.domElement );
 
 // Controls
@@ -67,59 +74,51 @@ gate.position.y = 10;
 gate.rotation.z = Math.PI / 4.0;
 scene.add( gate );
 
-// Create cone 
+const particle_count = 100; // Number of points in the trail
+const trail_size = 100; // Numbaer of points in the trail
+const trail_colors = [];
+for (let index = 0; index < trail_size; index++) {
+  trail_colors.push(new THREE.Color().setRGB( 1.0, (1.0 / trail_size) * index, (1.0 / trail_size) * index));
+}
+
 const cone_geometry = new THREE.ConeGeometry(0.1, 0.3, 32);
-const cone_material = new THREE.MeshStandardMaterial({ color: 'rgb(222, 69, 35)' });
-const cone = new THREE.Mesh(cone_geometry, cone_material);
-// Adjust cone position and rotation
-cone.position.set(-2, 10, 0); // Move cone down below the sphere
-cone.rotation.x = Math.PI / 2; // Rotate 180° to point downward
-scene.add(cone);
+const cone_material = new THREE.MeshStandardMaterial({ color: 'rgb(182, 37, 4)' });
+const cone_mesh = new THREE.InstancedMesh(cone_geometry, cone_material, particle_count * trail_size);
+scene.add(cone_mesh);
 
-// Line trail setup
-const trail_size = 1000; // Number of points in the trail
-const trail_points = new Float32Array(trail_size * 3); // 3 values per point (x, y, z)
-const trail_geometry = new THREE.BufferGeometry();
-trail_geometry.setAttribute("position", new THREE.BufferAttribute(trail_points, 3));
-const trail_material = new THREE.LineBasicMaterial({ color: 'rgb(255, 102, 0)' });
-const trail = new THREE.Line(trail_geometry, trail_material);
-scene.add(trail);
-
-function updateTrail() {
-  // Update trail positions
+function updateParticleTrail(particle_index: number, trail_size: number, cur_position: Vector3) {
   for (let i = trail_size - 1; i > 0; i--) {
-    trail_points[i * 3] = trail_points[(i - 1) * 3];     // x
-    trail_points[i * 3 + 1] = trail_points[(i - 1) * 3 + 1]; // y
-    trail_points[i * 3 + 2] = trail_points[(i - 1) * 3 + 2]; // z
+    let tmp_matrix = new THREE.Matrix4();
+    cone_mesh.getMatrixAt(particle_index + i - 1, tmp_matrix);
+    cone_mesh.setMatrixAt(particle_index + i, tmp_matrix);
+    // cone_mesh.setColorAt(particle_index + i, trail_colors[i]);
+  }
+  const dummy = new THREE.Object3D();
+  dummy.position.set(cur_position.x, cur_position.y, cur_position.z); // Move cone down below the sphere
+  dummy.rotation.x = Math.PI / 2; // Rotate 180° to point downward
+  dummy.updateMatrix();
+
+  cone_mesh.setMatrixAt(particle_index, dummy.matrix);
+}
+
+
+function updateParticles(positions: Array<Vector3>) {
+  for (let i = 0; i < particle_count; i++) {
+    updateParticleTrail(i * trail_size, trail_size, positions[i]);
   }
 
-  // Set new trail position at index 0
-  trail_points[0] = cone.position.x;
-  trail_points[1] = cone.position.y;
-  trail_points[2] = cone.position.z;
-
-  trail_geometry.attributes.position.needsUpdate = true;
+  // Update the instance matrices
+  cone_mesh.instanceMatrix.needsUpdate = true;
+  // cone_mesh.instanceColor.needsUpdate = true;
 }
 
-interface Vector3 {
-  x: number;
-  y: number;
-  z: number;
-}
-
-function updateConePosition(position: Vector3) {
-  console.log(position.x);
-  cone.position.set(position.x, position.y, position.z);
-}
-
-// Animation loop
 function animate() {
-axios.get<Vector3>('http://127.0.0.1:5000/app/data')
-  .then((response: { data: Vector3; }) => updateConePosition(response.data))
+axios.get<Array<Vector3>>('http://127.0.0.1:5000/app/data')
+  .then((response: { data: Array<Vector3>; }) => updateParticles(response.data))
   .catch((error: any) => console.error('Error:', error));
   requestAnimationFrame(animate);
 
-  updateTrail();
+  // updateTrail();
   renderer.render(scene, camera);
 }
 
