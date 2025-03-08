@@ -1,15 +1,16 @@
 import numpy as np
 import itertools
+import math
 from bwf_utilities import checkPlaneSide, defineGate, drawGate, defineOctahedron, drawOctahedron, samplePointsInASphere, samplePointsInABox
 
-
+rng = np.random.default_rng(12345)
 
 class BtSimulator:
     
     def __init__(self, count):
         self.particle_count = count
-        self.dt = 0.01
-        self.positions = list(np.random.rand(self.particle_count, 3) * (3 - 0) + 0)
+        self.dt = 0.1
+        self.positions = list(rng.random((self.particle_count, 3)) * (15 + 5) - 5)
 
         self.dist_type = "3d_euclidean"
         # self.dist_type = "2d_euclidean"
@@ -19,15 +20,14 @@ class BtSimulator:
         self.slack_cost = 2000.0
         self.gate_outerside = 3.0
         self.gate_innerside = 2.0
-        self.gate_edgelength = self.gate_outerside / 2.0 - self.gate_innerside/2.0
 
         self.cc = np.array([0.0, 10.0, 0.0])
-        self.n_vect = np.array([1.5,1.5,0])
+        self.n_vect = np.array([0.0, 0.0, 1.0])
 
         _ , self.bounding_planes, _, _ = defineGate(self.cc, self.n_vect, self.gate_innerside, self.gate_outerside)
 
     def get_positions(self):
-        return [{'x': p[0], 'y': p[1], 'z': p[2]} for p in self.positions]
+        return [{'x': float(p[0]), 'y': float(p[1]), 'z': float(p[2])} for p in self.positions]
 
     def step(self):
         new_positions = []
@@ -36,8 +36,11 @@ class BtSimulator:
         
         self.positions = new_positions
     
+    def reset(self):
+        self.positions = list(rng.random((self.particle_count, 3)) * (5 + 5) - 5)
+    
     def move(self, cur_position: np.array) -> None:
-        possible_directions = np.array(list(itertools.product((0, 1 * self.dt, -1 * self.dt), repeat=3)))
+        possible_directions = np.array(list(itertools.product((0, 1, -1), repeat=3)))
         direction_costs = np.zeros(possible_directions.shape[0])
         for index in range(0, possible_directions.shape[0]):
             new_position = cur_position + possible_directions[index]
@@ -46,8 +49,8 @@ class BtSimulator:
             
             if(self.dist_type == "3d_euclidean"):
                 center_distance = np.linalg.norm(new_position - self.cc)
-            # elif(center_distance_type == "2d_euclidean"):
-            #     center_distance = np.sqrt((p[0]-cc[0])**2 + (p[2]-cc[2])**2)
+            elif(self.dist_type == "2d_euclidean"):
+                center_distance = np.sqrt((new_position[0] - self.cc[0])**2 + (new_position[2] - self.cc[2])**2)
             # elif(center_distance_type == "2d_manhattan"):
             #     center_distance = np.abs(p[0]-cc[0]) + np.abs(p[2]-cc[2])
             # elif(center_distance_type == "2d_manhattan_mixed"):
@@ -56,13 +59,15 @@ class BtSimulator:
             post_center_distance = np.linalg.norm(new_position - self.cc)
 
             # if position_cost_enabled:
-            direction_costs[index] += post_center_distance**2 * 100.0
-            butter_w_coeff = self.butter_w_coeff_override if self.butter_w_coeff_override is not None else 1.0/(1.0 + (center_distance/3.0)**12.0)
+            direction_costs[index] += post_center_distance * post_center_distance * 0.5
+            # butter_w_coeff = self.butter_w_coeff_override if self.butter_w_coeff_override is not None else 1.0/(1.0 + (center_distance/3.0)**12.0)
+            butter_w_coeff = 1.0/(1.0 + (center_distance/3.0)**12.0)
+            # butter_w_coeff = 1.0
 
             for plane in self.bounding_planes:
-                plane_val = checkPlaneSide(plane, new_position)*checkPlaneSide(plane, self.cc) * butter_w_coeff
+                plane_val = checkPlaneSide(plane, new_position) * checkPlaneSide(plane, self.cc) * butter_w_coeff
                 if plane_val < 0:
-                    temp_cost = plane_val**2 * self.slack_cost
-                    direction_costs[index] += temp_cost
+                    direction_costs[index] += plane_val * plane_val * self.slack_cost
         
-        return cur_position + possible_directions[np.argmin(direction_costs)]
+        return cur_position + self.dt * possible_directions[np.argmin(direction_costs)] + (0.05 + 0.05) * rng.random((3,)) - 0.05
+        # return cur_position + self.dt * possible_directions[np.argmin(direction_costs)]
