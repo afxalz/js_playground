@@ -16,6 +16,8 @@ scene.background = new THREE.Color( 0xf0f0f0 );
 const camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
 camera.position.set( 15, 8, 10 );
 camera.rotation.set( 0, Math.PI / 2, 0 );
+// camera.position.set( 0, 8, 20 );
+// camera.rotation.set( -Math.PI / 2, 0, 0 );
 scene.add( camera );
 
 scene.add( new THREE.AmbientLight( 0xf0f0f0, 3 ) );
@@ -61,7 +63,6 @@ container.appendChild( renderer.domElement );
 // const transformControl = new TransformControls( camera, renderer.domElement );
 // transformControl.addEventListener( 'change', animate );
 // transformControl.addEventListener( 'dragging-changed', function ( event ) {
-
 //   controls.enabled = ! event.value;
 
 // } );
@@ -81,35 +82,30 @@ for (let index = 0; index < trail_size; index++) {
   trail_colors.push(new THREE.Color().setRGB( 1.0, (1.0 / trail_size) * index, (1.0 / trail_size) * index));
 }
 
-const cone_geometry = new THREE.ConeGeometry(0.1, 0.3, 32);
-const cone_material = new THREE.MeshStandardMaterial({ color: 'rgb(182, 37, 4)' });
-const cone_mesh = new THREE.InstancedMesh(cone_geometry, cone_material, particle_count * trail_size);
-scene.add(cone_mesh);
+const particle_geometry = new THREE.SphereGeometry(0.05);
+const particle_material = new THREE.MeshStandardMaterial({ color: 'rgb(227, 69, 45)' });
+const particle_mesh = new THREE.InstancedMesh(particle_geometry, particle_material, particle_count * trail_size);
+scene.add(particle_mesh);
 
 function updateParticleTrail(particle_index: number, trail_size: number, cur_position: Vector3) {
   for (let i = trail_size - 1; i > 0; i--) {
     let tmp_matrix = new THREE.Matrix4();
-    cone_mesh.getMatrixAt(particle_index + i - 1, tmp_matrix);
-    cone_mesh.setMatrixAt(particle_index + i, tmp_matrix);
-    // cone_mesh.setColorAt(particle_index + i, trail_colors[i]);
+    particle_mesh.getMatrixAt(particle_index + i - 1, tmp_matrix);
+    particle_mesh.setMatrixAt(particle_index + i, tmp_matrix);
   }
   const dummy = new THREE.Object3D();
   dummy.position.set(cur_position.x, cur_position.y, cur_position.z); // Move cone down below the sphere
-  dummy.rotation.x = Math.PI / 2; // Rotate 180° to point downward
   dummy.updateMatrix();
 
-  cone_mesh.setMatrixAt(particle_index, dummy.matrix);
+  particle_mesh.setMatrixAt(particle_index, dummy.matrix);
 }
-
 
 function updateParticles(positions: Array<Vector3>) {
   for (let i = 0; i < particle_count; i++) {
     updateParticleTrail(i * trail_size, trail_size, positions[i]);
   }
 
-  // Update the instance matrices
-  cone_mesh.instanceMatrix.needsUpdate = true;
-  // cone_mesh.instanceColor.needsUpdate = true;
+  particle_mesh.instanceMatrix.needsUpdate = true;
 }
 
 function animate() {
