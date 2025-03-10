@@ -10,7 +10,7 @@ class BtSimulator:
     def __init__(self, count):
         self.particle_count = count
         self.dt = 0.1
-        self.positions = list(rng.random((self.particle_count, 3)) * (15 + 5) - 5)
+        self.positions = list(rng.random((self.particle_count, 3)) * (25 + 15) - 15)
 
         self.dist_type = "3d_euclidean"
         # self.dist_type = "2d_euclidean"
@@ -18,11 +18,11 @@ class BtSimulator:
         # self.dist_type = "2d_manhattan_mixed"
         self.butter_w_coeff_override = None
         self.slack_cost = 2000.0
-        self.gate_outerside = 3.0
-        self.gate_innerside = 2.0
+        self.gate_outerside = 2.0 # width
+        self.gate_innerside = 1.0 # width
 
         self.cc = np.array([0.0, 10.0, 0.0])
-        self.n_vect = np.array([0.0, 0.0, 1.0])
+        self.n_vect = np.array([1.0, 0.0, 0.0]) # take from here
 
         _ , self.bounding_planes, _, _ = defineGate(self.cc, self.n_vect, self.gate_innerside, self.gate_outerside)
 
@@ -40,7 +40,7 @@ class BtSimulator:
         self.positions = list(rng.random((self.particle_count, 3)) * (5 + 5) - 5)
     
     def move(self, cur_position: np.array) -> None:
-        possible_directions = np.array(list(itertools.product((0, 1, -1), repeat=3)))
+        possible_directions = np.array(list(itertools.product((0, 1 * self.dt, -1 * self.dt), repeat=3)))
         direction_costs = np.zeros(possible_directions.shape[0])
         for index in range(0, possible_directions.shape[0]):
             new_position = cur_position + possible_directions[index]
@@ -69,5 +69,5 @@ class BtSimulator:
                 if plane_val < 0:
                     direction_costs[index] += plane_val * plane_val * self.slack_cost
         
-        return cur_position + self.dt * possible_directions[np.argmin(direction_costs)] + (0.05 + 0.05) * rng.random((3,)) - 0.05
+        return cur_position + possible_directions[np.argmin(direction_costs)] + (0.05 + 0.05) * rng.random((3,)) - 0.05
         # return cur_position + self.dt * possible_directions[np.argmin(direction_costs)]
