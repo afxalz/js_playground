@@ -57,21 +57,22 @@ const container = document.getElementById( 'container' );
 container.appendChild( renderer.domElement );
 
 // Controls
-// const controls = new OrbitControls( camera, renderer.domElement );
-// controls.damping = 0.2;
-// controls.addEventListener( 'change', animate);
-// const transformControl = new TransformControls( camera, renderer.domElement );
-// transformControl.addEventListener( 'change', animate );
-// transformControl.addEventListener( 'dragging-changed', function ( event ) {
-//   controls.enabled = ! event.value;
+const controls = new OrbitControls( camera, renderer.domElement );
+controls.damping = 0.2;
+controls.addEventListener( 'change', animate);
+const transformControl = new TransformControls( camera, renderer.domElement );
+transformControl.addEventListener( 'change', animate );
+transformControl.addEventListener( 'dragging-changed', function ( event ) {
+  controls.enabled = ! event.value;
 
-// } );
-// scene.add( transformControl.getHelper() );
+} );
+scene.add( transformControl.getHelper() );
 
-const gate_geometry = new THREE.RingGeometry( 2, 3, 4 ); 
+const gate_geometry = new THREE.RingGeometry( Math.sqrt(2), 2 * Math.sqrt(2), 4 ); 
 const gate_material = new THREE.MeshBasicMaterial( { color: 'rgb(65, 65, 214)', side: THREE.DoubleSide } );
 const gate = new THREE.Mesh( gate_geometry, gate_material );
 gate.position.y = 10;
+gate.rotation.y = Math.PI / 2.0;
 gate.rotation.z = Math.PI / 4.0;
 scene.add( gate );
 
